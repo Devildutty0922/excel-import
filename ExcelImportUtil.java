@@ -1,9 +1,7 @@
-package com.lvyou.micro.utils.excel;
+package com.lvyou.micro.common.utils;
 
 import cn.hutool.core.collection.CollUtil;
 import com.lvyou.micro.exception.ApiException;
-import com.lvyou.micro.utils.LocalDateTimeUtils;
-import com.lvyou.micro.utils.MathUtils;
 import io.swagger.annotations.ApiModelProperty;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
@@ -109,14 +107,15 @@ public class ExcelImportUtil {
      * 获取列名和列的序号
      *
      * @param list 数据
-     * @param rowNumOfColumnsName 列名所在的行号(从1开始)
+     * @param columnsNameRowNum 列名所在的行号(从1开始)
+     * @param ignoreStartRowNum 开头忽略的行数
      * @return HashMap<String, Integer>   HashMap<列名, 列序号>
      * @author kun.tan
      * @date 11:31 2022-07-18
      */
-    public static HashMap<String, Integer> getColumnNameAndIndex(List<List<Object>> list, Integer rowNumOfColumnsName) {
+    public static HashMap<String, Integer> getColumnNameAndIndex(List<List<Object>> list, Integer columnsNameRowNum, Integer ignoreStartRowNum) {
         HashMap<String,Integer> columnMap=new HashMap<String,Integer>();
-        List<Object> rowOfColumnsName=list.get(rowNumOfColumnsName-1);
+        List<Object> rowOfColumnsName=list.get(columnsNameRowNum-ignoreStartRowNum-1);
         Integer columnNum= rowOfColumnsName.size();
 
         for (int i = 0; i < columnNum; i++) {
@@ -135,37 +134,37 @@ public class ExcelImportUtil {
      * @param clazz 对象类型
      * @param fileName 文件名称
      * @param fileUrl   文件地址
-     * @param ignoreStartRowNum   开头忽略的行数
+     * @param ignoreStartRowCount   开头忽略的行数
      * @param columnsNameRowNum   列名行号
      * @param dataStartRowNum   数据开始行号
-     * @param ignoreEndRowNum   结尾忽略的行数
+     * @param ignoreEndRowCount   结尾忽略的行数
      * @return List<T>  对象集合
      * @author kun.tan
      * @date 11:31 2022-08-01
      */
-    public static <T> List<T> getDataListFromExcelFileUrl(Class<T> clazz,String fileName,String fileUrl,Integer ignoreStartRowNum,
-                                                          Integer columnsNameRowNum, Integer dataStartRowNum,Integer ignoreEndRowNum) throws FileUploadException,IOException{
+    public static <T> List<T> getDataListFromExcelFileUrl(Class<T> clazz,String fileName,String fileUrl,Integer ignoreStartRowCount,
+                                                          Integer columnsNameRowNum, Integer dataStartRowNum,Integer ignoreEndRowCount) throws FileUploadException,IOException{
         List<List<Object>> importExcelData= getDataListFromExcelFileUrl(fileName,fileUrl);
-        HashMap<String, Integer> columbMap= getColumnNameAndIndex(importExcelData,columnsNameRowNum);
-        return changeToObjList(clazz, importExcelData, columbMap,ignoreStartRowNum, dataStartRowNum,ignoreEndRowNum);
+         HashMap<String, Integer> columbMap= getColumnNameAndIndex(importExcelData,columnsNameRowNum,ignoreStartRowCount);
+        return changeToObjList(clazz, importExcelData, columbMap,ignoreStartRowCount, dataStartRowNum,ignoreEndRowCount);
     }
     /**
      * 导入文件流返回对象集合
      * @param request 请求体
      * @param clazz 对象类型
-     * @param ignoreStartRowNum   开头忽略的行数
+     * @param ignoreStartRowCount   开头忽略的行数
      * @param columnsNameRowNum   列名行号
      * @param dataStartRowNum   数据开始行号
-     * @param ignoreEndRowNum   结尾忽略的行数
+     * @param ignoreEndRowCount   结尾忽略的行数
      * @return List<T>  对象集合
      * @author kun.tan
      * @date 11:31 2022-08-01
      */
-    public static <T> List<T> getDataListFromExcelFile(HttpServletRequest request,Class<T> clazz,Integer ignoreStartRowNum,
-                                                       Integer columnsNameRowNum, Integer dataStartRowNum,Integer ignoreEndRowNum) throws FileUploadException,IOException{
+    public static <T> List<T> getDataListFromExcelFile(HttpServletRequest request,Class<T> clazz,Integer ignoreStartRowCount,
+                                                       Integer columnsNameRowNum, Integer dataStartRowNum,Integer ignoreEndRowCount) throws FileUploadException,IOException{
         List<List<Object>> importExcelData= getDataListFromExcelFile(request);
-        HashMap<String, Integer> columbMap= getColumnNameAndIndex(importExcelData,columnsNameRowNum);
-        return changeToObjList(clazz, importExcelData, columbMap,ignoreStartRowNum, dataStartRowNum,ignoreEndRowNum);
+        HashMap<String, Integer> columbMap= getColumnNameAndIndex(importExcelData,columnsNameRowNum,ignoreStartRowCount);
+        return changeToObjList(clazz, importExcelData, columbMap,ignoreStartRowCount, dataStartRowNum,ignoreEndRowCount);
     }
 
     /**
@@ -174,21 +173,22 @@ public class ExcelImportUtil {
      * @param clazz 对象类型
      * @param importExcelData 解析的数据集合
      * @param columbMap   HashMap<列名, 列序号>
-     * @param ignoreStartRowNum   开头忽略的行数
+     * @param ignoreStartRowCount   开头忽略的行数
      * @param dataStartRowNum   数据开始行号
-     * @param ignoreEndRowNum   结尾忽略的行数
+     * @param ignoreEndRowCount   结尾忽略的行数
      * @return List<T>  对象集合
      * @author kun.tan
      * @date 11:31 2022-08-01
      */
     private static <T> List<T> changeToObjList(Class<T> clazz, List<List<Object>> importExcelData, HashMap<String, Integer> columbMap
-            ,Integer ignoreStartRowNum, Integer dataStartRowNum,Integer ignoreEndRowNum) {
+            ,Integer ignoreStartRowCount, Integer dataStartRowNum,Integer ignoreEndRowCount) {
         List<T> dtoList = new ArrayList<>();
-        if ((long) importExcelData.size() > dataStartRowNum) {
-            int i= dataStartRowNum - 1;
+        int startIndex= dataStartRowNum-ignoreStartRowCount - 1;
+        if ((long) importExcelData.size() > startIndex) {
+            int i= startIndex;
             String annotationValue="";
             try {
-                for (; i < (long) importExcelData.size() - ignoreEndRowNum; i++) {
+                for (; i < (long) importExcelData.size() - ignoreEndRowCount; i++) {
                     List<Object> row = importExcelData.get(i);
                     T addDto = clazz.newInstance();
                     for (Field field : getAllFields(clazz)) {
@@ -197,21 +197,25 @@ public class ExcelImportUtil {
                         if(columbMap.get(annotationValue)==null){
                             continue;
                         }
+                        String value=row.get(columbMap.get(annotationValue)).toString();
+                        if(StringUtils.isEmpty(value)){
+                            continue;
+                        }
                         if(field.getType().equals(BigDecimal.class)){
-                            field.set(addDto,  MathUtils.getBigDecimal(row.get(columbMap.get(annotationValue)).toString()));
+                            field.set(addDto,  MathUtils.getBigDecimal(value));
                         } else if(field.getType().equals(LocalDateTime.class)){
-                            field.set(addDto,  LocalDateTimeUtils.convertTimeStrToLocalDateTime(row.get(columbMap.get(annotationValue)).toString()));
+                            field.set(addDto,  LocalDateTimeUtils.convertTimeStrToLocalDateTime(value));
                         }else if(field.getType().equals(LocalDate.class)){
-                            field.set(addDto,  LocalDateTimeUtils.convertTimeStrToLocalDate(row.get(columbMap.get(annotationValue)).toString()));
+                            field.set(addDto,  LocalDateTimeUtils.convertTimeStrToLocalDate(value));
                         } else {
-                            field.set(addDto, row.get(columbMap.get(annotationValue)).toString());
+                            field.set(addDto, value);
                         }
 
                     }
                     dtoList.add(addDto);
                 }
             } catch (Exception e) {
-                throw new ApiException("导入数据解析错误：第"+ignoreStartRowNum+i+1+"行（"+annotationValue+" "+e.getMessage()+"）");
+                throw new ApiException("导入数据解析错误：第"+ignoreStartRowCount+i+1+"行（"+annotationValue+" "+e.getMessage()+"）");
             }
         }
         return dtoList;
